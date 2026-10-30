@@ -1,116 +1,90 @@
 # RAG Evaluation Practice
 
-RAG 파이프라인을 구축하고, RAGAS를 이용해 검색 및 답변 품질을 평가하는 실습 프로젝트입니다.
+RAG의 검색·답변 품질을 RAGAS 지표로 확인하고, 설정과 평가 데이터가 결과에 미치는 영향을 살펴보는 학습 프로젝트입니다.
 
-## 프로젝트 목표
+[실험 노트북](notebooks/ragas_eval.ipynb) · [설정별 요약 CSV](results/ragas_summary.csv) · [질문별 원시 결과](results/ragas_all_results.csv) · [프로필](https://github.com/juyoo0729)
 
-이 프로젝트의 목표는 단순히 RAG를 실행하는 것이 아니라, 설정값에 따라 RAG 성능이 어떻게 달라지는지 실험하고 분석하는 것입니다.
+## 확인하려던 문제
 
-주요 실험 항목은 다음과 같습니다.
+문서를 잘게 나누는 크기, 겹치는 범위, 검색 문서 수에 따라 답변에 필요한 문맥이 달라질 수 있습니다.
+이 실습에서는 청크 설정을 바꾸고 검색 결과·답변·지표를 함께 저장했습니다.
 
-* chunk size에 따른 검색 품질 비교
-* chunk overlap에 따른 문맥 유지 효과 비교
-* retriever의 k 값에 따른 검색 결과 비교
-* RAGAS 지표를 이용한 답변 품질 평가
-* faithfulness, answer relevancy, context precision, context recall 비교
+## 저장된 실험 결과
 
-## 프로젝트 구조
+아래는 저장소의 CSV에 기록된 **질문 10개 × 설정 3개, 총 30개 결과 행**을 정리한 값입니다.
+2026.10.31 문서 정리 시 원시 CSV의 평균과 요약 CSV를 대조했으며, 모델을 새로 실행한 결과는 아닙니다.
+지표는 소수 셋째 자리로 반올림했습니다.
 
-```text
-rag-eval-practice/
-├── notebooks/
-│   └── ragas_eval.ipynb
-├── src/
-├── data/
-│   └── .gitkeep
-├── results/
-│   └── .gitkeep
-├── vectorstore/
-│   └── .gitkeep
-├── setup.sh
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
+| 설정 | chunk_size | chunk_overlap | k | 질문 수 | faithfulness | answer_relevancy | context_precision | context_recall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| chunk_500 | 500 | 50 | 3 | 10 | 0.980 | 0.839 | 1.000 | 1.000 |
+| chunk_1000 | 1000 | 100 | 3 | 10 | 0.930 | 0.841 | 1.000 | 1.000 |
+| chunk_1500 | 1500 | 150 | 3 | 10 | 0.930 | 0.758 | 1.000 | 1.000 |
 
-## 폴더 설명
+### 결과 해석의 범위
 
-| 폴더           | 설명                      |
-| ------------ | ----------------------- |
-| notebooks/   | Jupyter Notebook 실험 파일  |
-| src/         | Python 모듈 코드            |
-| data/        | PDF, CSV 등 원본 데이터 저장 위치 |
-| results/     | 평가 결과 CSV, 그래프 등 저장 위치  |
-| vectorstore/ | Chroma 벡터DB 저장 위치       |
+- 기존 실험은 **overlap 비율을 10%로 유지한 설정 묶음 비교**입니다. chunk size와 overlap이 함께 바뀌므로 크기 하나의 영향으로 해석하지 않습니다.
+- 원시 결과에는 평가 질문·기준 답변이 들어 있는 검색 문맥이 확인됩니다. 각 설정의 10개 행 중 9개 행의 문맥에 `기준 답변` 문구가 포함돼 있어, 독립 평가로 해석하기 어렵습니다.
+- 따라서 context 지표가 높다는 사실만으로 새 문서·질문에서도 검색 성능이 좋다고 판단하지 않습니다. 위 수치는 전체 서비스 정확도가 아닙니다.
+- 같은 질문으로 반복 실행한 변동과 외부 평가셋 검증은 별도로 정리해야 합니다. 현재 기록만으로 최적 설정을 확정하지 않습니다.
 
-## 주의사항
+## 다음 비교 실험 계획
 
-다음 파일은 GitHub에 업로드하지 않습니다.
+기존 결과를 유지하고, 평가용 질문·정답을 검색 인덱스에서 분리한 뒤 비교합니다.
+질문, 정답, 문서 버전, 임베딩·생성·평가 모델과 프롬프트를 고정해 설정 변경의 영향을 확인합니다.
 
-* PDF 원본 파일
-* API 키
-* `.env` 파일
-* Chroma 벡터DB
-* 모델 파일
-* 대용량 데이터셋
+### 1. 청크 크기만 변경
 
-API 키는 `.env` 파일 또는 환경변수로 관리합니다.
+| 실험 | chunk_size | chunk_overlap | k |
+| --- | ---: | ---: | ---: |
+| A | 500 | 100 | 3 |
+| B | 1000 | 100 | 3 |
+| C | 1500 | 100 | 3 |
 
-## 설치 방법
+### 2. 검색 문서 수만 변경
 
-로컬 또는 RunPod 환경에서 다음 명령어로 패키지를 설치합니다.
+| 실험 | chunk_size | chunk_overlap | k |
+| --- | ---: | ---: | ---: |
+| A | 1000 | 100 | 3 |
+| B | 1000 | 100 | 5 |
+| C | 1000 | 100 | 7 |
 
-```bash
-python -m pip install -r requirements.txt
-```
-
-RunPod에서는 다음 명령어로 환경을 세팅할 수 있습니다.
-
-```bash
-bash setup.sh
-```
-
-## 실험 계획
-
-### 1. Chunk Size 비교
-
-같은 문서와 같은 질문을 사용하여 chunk size만 변경합니다.
-
-| 실험 | chunk_size | chunk_overlap |  k |
-| -- | ---------: | ------------: | -: |
-| A  |        500 |            50 |  3 |
-| B  |       1000 |           100 |  3 |
-| C  |       1500 |           150 |  3 |
-
-### 2. Retriever k 값 비교
-
-같은 chunk size에서 검색 문서 개수만 변경합니다.
-
-| 실험 | chunk_size | chunk_overlap |  k |
-| -- | ---------: | ------------: | -: |
-| A  |       1000 |           100 |  3 |
-| B  |       1000 |           100 |  5 |
-| C  |       1000 |           100 |  7 |
+위 표는 후속 계획이며 기존 CSV 결과와 구분합니다.
+다음 결과에는 질문별 실패, 지표의 유효 응답 수, 실행 비용·시간, 반복 실행의 변동을 함께 남길 예정입니다.
 
 ## 평가 지표
 
-RAGAS를 사용하여 다음 지표를 평가합니다.
+| 지표 | 확인하는 내용 |
+| --- | --- |
+| faithfulness | 답변이 제공된 검색 문맥에 근거하는 정도 |
+| answer_relevancy | 답변과 질문의 관련성 |
+| context_precision | 검색된 문맥의 관련성과 순위 품질 |
+| context_recall | 기준 답변에 필요한 정보가 검색 문맥에 포함되는 정도 |
 
-| 지표                | 의미                         |
-| ----------------- | -------------------------- |
-| faithfulness      | 답변이 검색된 context에 근거하는지 평가  |
-| answer_relevancy  | 답변이 질문과 관련 있는지 평가          |
-| context_precision | 검색된 context 중 유용한 문서 비율 평가 |
-| context_recall    | 필요한 context를 충분히 검색했는지 평가  |
+LLM 기반 평가 지표는 평가 모델과 데이터 구성의 영향을 받으므로, 질문별 원문 검토와 함께 해석합니다.
 
-## 최종 목표
+## 파일 안내
 
-실험 결과를 바탕으로 현재 문서에 가장 적합한 RAG 설정을 찾고, 그 이유를 분석합니다.
+| 위치 | 내용 |
+| --- | --- |
+| `notebooks/ragas_eval.ipynb` | RAG 구성·평가 실습 노트북 |
+| `results/ragas_all_results.csv` | 질문·검색 문맥·답변·기준 답변·개별 지표 |
+| `results/ragas_summary.csv` | 설정별 평균 지표 |
+| `data/` | 로컬 입력 데이터 위치 |
+| `vectorstore/` | 재생성 가능한 로컬 검색 인덱스 위치 |
+| `src/` | 후속 모듈 정리를 위한 폴더 |
 
-예시 결론:
+## 환경 준비
 
-```text
-chunk_size=1000, chunk_overlap=100, k=3 설정이 가장 안정적이었다.
-chunk_size=500은 검색 정밀도는 높았지만 문맥이 부족했고,
-chunk_size=1500은 문맥은 풍부했지만 불필요한 정보가 섞여 precision이 낮아졌다.
+```bash
+git clone https://github.com/juyoo0729/rag-eval-practice.git
+cd rag-eval-practice
+python -m pip install -r requirements.txt
 ```
+
+노트북을 열고 입력 문서와 모델·인증 설정을 확인한 뒤 순서대로 실행합니다.
+기존 RunPod 환경 설정 스크립트는 `setup.sh`에 있습니다.
+모델 호출에는 API 키와 비용이 필요할 수 있으며, 이 문서 정리 과정에서는 호출하지 않았습니다.
+
+원본 문서, API 키, `.env`, 벡터 인덱스와 모델 파일은 공개 저장소에 올리지 않습니다.
+새 평가 결과를 공개할 때도 질문·답변·검색 문맥에 민감한 내용이 포함돼 있지 않은지 확인합니다.
